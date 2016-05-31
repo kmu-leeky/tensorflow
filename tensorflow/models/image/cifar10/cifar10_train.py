@@ -55,7 +55,8 @@ tf.app.flags.DEFINE_integer('max_steps', 1000000,
                             """Number of batches to run.""")
 tf.app.flags.DEFINE_boolean('log_device_placement', False,
                             """Whether to log device placement.""")
-
+tf.app.flags.DEFINE_string('checkpoint_dir', None,
+                            """Checkpoint file path to start training""")
 
 def train():
   """Train CIFAR-10 for a number of steps."""
@@ -91,11 +92,17 @@ def train():
     sess.run(init)
 
     # Start the queue runners.
-    tf.train.start_queue_runners(sess=sess)
+    print("FLAGS.checkpoint_dir is %s" % FLAGS.checkpoint_dir)
+#    tf.train.start_queue_runners(sess=sess)
+#    summary_writer = tf.train.SummaryWriter(FLAGS.train_dir, sess.graph)
+    if FLAGS.checkpoint_dir is not None:
+      ckpt = tf.train.get_checkpoint_state(FLAGS.checkpoint_dir)
+      print("checkpoint path is %s" % ckpt.model_checkpoint_path)
+      tf.train.Saver().restore(sess, ckpt.model_checkpoint_path)
 
-    summary_writer = tf.train.SummaryWriter(FLAGS.train_dir, sess.graph)
-
-    for step in xrange(FLAGS.max_steps):
+    cur_step = sess.run(global_step);
+    print("current step is %s" % cur_step)
+    for step in xrange(cur_step, FLAGS.max_steps):
       start_time = time.time()
       _, loss_value = sess.run([train_op, loss])
       duration = time.time() - start_time
@@ -123,10 +130,11 @@ def train():
 
 
 def main(argv=None):  # pylint: disable=unused-argument
+  print("train directory is %s" %(FLAGS.train_dir))
   cifar10.maybe_download_and_extract()
-  if tf.gfile.Exists(FLAGS.train_dir):
-    tf.gfile.DeleteRecursively(FLAGS.train_dir)
-  tf.gfile.MakeDirs(FLAGS.train_dir)
+#  if tf.gfile.Exists(FLAGS.train_dir):
+#    tf.gfile.DeleteRecursively(FLAGS.train_dir)
+#  tf.gfile.MakeDirs(FLAGS.train_dir)
   train()
 
 
