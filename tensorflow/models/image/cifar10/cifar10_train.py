@@ -91,14 +91,15 @@ def train():
         log_device_placement=FLAGS.log_device_placement))
     sess.run(init)
 
-    # Start the queue runners.
-    print("FLAGS.checkpoint_dir is %s" % FLAGS.checkpoint_dir)
-#    tf.train.start_queue_runners(sess=sess)
-#    summary_writer = tf.train.SummaryWriter(FLAGS.train_dir, sess.graph)
     if FLAGS.checkpoint_dir is not None:
       ckpt = tf.train.get_checkpoint_state(FLAGS.checkpoint_dir)
       print("checkpoint path is %s" % ckpt.model_checkpoint_path)
       tf.train.Saver().restore(sess, ckpt.model_checkpoint_path)
+
+    # Start the queue runners.
+    print("FLAGS.checkpoint_dir is %s" % FLAGS.checkpoint_dir)
+    tf.train.start_queue_runners(sess=sess)
+    summary_writer = tf.train.SummaryWriter(FLAGS.train_dir, sess.graph)
 
     cur_step = sess.run(global_step);
     print("current step is %s" % cur_step)
