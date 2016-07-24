@@ -45,6 +45,7 @@ from six.moves import xrange  # pylint: disable=redefined-builtin
 import tensorflow as tf
 
 from tensorflow.models.image.cifar10 import cifar10
+import tensorflow.python.framework.spot_instance_manager
 
 FLAGS = tf.app.flags.FLAGS
 
@@ -103,11 +104,19 @@ def train():
 
     cur_step = sess.run(global_step);
     print("current step is %s" % cur_step)
+    interrupt_check_duration = 0.0
     for step in xrange(cur_step, FLAGS.max_steps):
       start_time = time.time()
       _, loss_value = sess.run([train_op, loss])
       duration = time.time() - start_time
+      interrupt_check_duration += duration
+      if (float(interrupt_check_duration) > 5.0) :
+        if(tf.python.framework.spot_instance_manager.check_if_interrupted()) :
+          print("interrupted")
+          checkpoint_path = os.path.join(FLAGS.train_dir, 'model.ckpt')
+          saver.save(sess, checkpoint_path, global_step=step)
 
+        interrupt_check_duration = 0.0
       assert not np.isnan(loss_value), 'Model diverged with loss = NaN'
 
       if step % 10 == 0:
