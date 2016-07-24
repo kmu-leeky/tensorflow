@@ -40,12 +40,19 @@ from datetime import datetime
 import os.path
 import time
 
+import pycurl
+import re
+from StringIO import StringIO
+import tinys3
+import os
+
 import numpy as np
 from six.moves import xrange  # pylint: disable=redefined-builtin
 import tensorflow as tf
 
 from tensorflow.models.image.cifar10 import cifar10
-import tensorflow.python.framework.spot_instance_manager
+
+interrupt_check_url = "http://169.254.169.254/latest/meta-data/spot/termination-time"
 
 FLAGS = tf.app.flags.FLAGS
 
@@ -111,10 +118,14 @@ def train():
       duration = time.time() - start_time
       interrupt_check_duration += duration
       if (float(interrupt_check_duration) > 5.0) :
-        if(tf.python.framework.spot_instance_manager.check_if_interrupted()) :
+        print("checking for interruption: %s", interrupt_check_duration)
+        if(check_if_interrupted()) :
           print("interrupted")
           checkpoint_path = os.path.join(FLAGS.train_dir, 'model.ckpt')
           saver.save(sess, checkpoint_path, global_step=step)
+          upload_checkpoint_to_s3(checkpoint_path, "spot-instance-tf-checkpoint")
+        else:
+          print("not interrupted")
 
         interrupt_check_duration = 0.0
       assert not np.isnan(loss_value), 'Model diverged with loss = NaN'
@@ -138,6 +149,20 @@ def train():
         checkpoint_path = os.path.join(FLAGS.train_dir, 'model.ckpt')
         saver.save(sess, checkpoint_path, global_step=step)
 
+def check_if_interrupted() :
+  buffer = StringIO()
+  c = pycurl.Curl()
+  c.setopt(c.URL, interrupt_check_url)
+  c.setopt(c.WRITEDATA, buffer)
+  c.perform()
+  c.close()
+  body = buffer.getvalue()
+  return bool(re.search('.*T.*Z', body))
+
+def upload_checkpoint_to_s3(source_file, bucket):
+  conn = tinys3.Connection(os.environ["AWS_ACCESS_KEY_ID"], os.environ["AWS_SECRET_ACCESS_KEY"], tls=True)
+  f = open(source_file, 'rb')
+  conn.upload(source_file, f, bucket)
 
 def main(argv=None):  # pylint: disable=unused-argument
   print("train directory is %s" %(FLAGS.train_dir))
