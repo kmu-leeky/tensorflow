@@ -122,8 +122,11 @@ def train():
         if(check_if_interrupted()) :
           print("interrupted")
           checkpoint_path = os.path.join(FLAGS.train_dir, 'model.ckpt')
+          print("checkpoint path is %s" % checkpoint_path)
+          break
           saver.save(sess, checkpoint_path, global_step=step)
           upload_checkpoint_to_s3(checkpoint_path, "spot-instance-tf-checkpoint")
+
         else:
           print("not interrupted")
 
@@ -150,6 +153,7 @@ def train():
         saver.save(sess, checkpoint_path, global_step=step)
 
 def check_if_interrupted() :
+  return True
   buffer = StringIO()
   c = pycurl.Curl()
   c.setopt(c.URL, interrupt_check_url)
